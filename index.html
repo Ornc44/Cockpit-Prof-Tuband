@@ -1,0 +1,1639 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cockpit Prof – EDT + Progression + Contrôles</title>
+  <style>
+    :root { color-scheme: dark light; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; }
+    header { padding: 14px 16px; border-bottom: 1px solid #4444; display:flex; gap:12px; align-items:center; flex-wrap:wrap;}
+    header h1 { font-size: 16px; margin: 0; opacity:.9; }
+    nav { display:flex; gap:8px; flex-wrap:wrap;}
+    nav button { padding: 8px 10px; border: 1px solid #6666; background: transparent; border-radius: 10px; cursor:pointer;}
+    nav button.active { background:#6663; }
+    main { padding: 16px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;}
+    .card { border:1px solid #6666; border-radius: 14px; padding: 12px; margin: 10px 0; }
+    label { font-size: 12px; opacity:.8; display:block; margin-bottom: 4px; }
+    input, select, textarea { padding: 8px; border-radius: 10px; border:1px solid #6666; min-width: 220px; background: transparent; color: inherit; }
+    textarea { min-height: 70px; min-width: 320px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #6663; padding: 8px; text-align:left; vertical-align: top; }
+    th { font-size: 12px; opacity:.85; }
+    .muted { opacity:.75; font-size: 12px; }
+    .pill { display:inline-flex; gap:6px; align-items:center; border:1px solid #6666; padding: 3px 8px; border-radius: 999px; font-size: 12px; }
+    .ok { border-color: #2ecc7155; }
+    .warn { border-color: #f39c1255; }
+    .bad { border-color: #e74c3c55; }
+    .danger { color:#e74c3c; }
+    .btn { padding: 8px 10px; border: 1px solid #6666; background: transparent; border-radius: 10px; cursor:pointer;}
+    .btn.primary { border-color:#6aa5ff66; background:#6aa5ff22; }
+    .btn.danger { border-color:#e74c3c66; background:#e74c3c22; }
+    .grid { display:grid; gap:10px; }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .bar { height: 10px; border-radius: 999px; background:#6663; overflow:hidden; border:1px solid #6664; }
+    .bar > div { height:100%; width:0%; background: currentColor; }
+    .tiny { font-size: 11px; opacity:.8; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; border:1px solid #6666; border-bottom-width:2px; padding:1px 6px; border-radius: 8px; font-size: 12px; }
+    details summary { cursor:pointer; }
+    .right { margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    /* EDT grid */
+    .edtWrap{ overflow:auto; border:1px solid #6664; border-radius:14px; }
+    .edtGrid{ width:100%; border-collapse: collapse; min-width: 920px; }
+    .edtGrid th, .edtGrid td{ border-bottom:1px solid #6663; border-right:1px solid #6663; padding:8px; vertical-align:top; }
+    .edtGrid th:first-child, .edtGrid td:first-child{ position: sticky; left:0; background: color-mix(in oklab, Canvas 92%, transparent); z-index: 2; }
+    .edtGrid thead th{ position: sticky; top:0; background: color-mix(in oklab, Canvas 92%, transparent); z-index: 3; }
+    .cellBtn{
+      width:100%; text-align:left; padding:8px; border-radius: 12px;
+      border:1px solid #6664; background: transparent; cursor:pointer;
+      user-select: none;
+    }
+    .cellBtn:hover{ background:#6662; }
+    .cellLines{ display:flex; flex-direction:column; gap:6px; }
+    .cellLine{
+      font-size:12px; padding:6px 8px; border-radius:12px;
+      border:1px solid #6664;
+      background: color-mix(in oklab, Canvas 85%, transparent);
+    }
+    .cellEmpty{ opacity:.55; font-size:12px; }
+
+    .legend{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .legendItem{ display:flex; gap:8px; align-items:center; border:1px solid #6664; padding:4px 8px; border-radius:999px; font-size:12px; }
+    .swatch{ width:12px; height:12px; border-radius:4px; border:1px solid #6666; }
+
+    /* Modal */
+    .modalBack{
+      position:fixed; inset:0; background:#0008;
+      display:none; align-items:center; justify-content:center; padding: 16px; z-index: 9999;
+    }
+    .modal{
+      width:min(860px, 96vw); max-height: 90vh; overflow:auto;
+      background: Canvas; border:1px solid #6666; border-radius:16px; padding: 12px;
+      box-shadow: 0 10px 30px #0006;
+    }
+    .modalHeader{ display:flex; gap:10px; align-items:center; }
+    .modalHeader h3{ margin:0; }
+
+    /* Tag temporaire */
+    .tagTemp{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:2px 8px; border-radius:999px;
+      border:1px dashed #6aa5ff88;
+      background:#6aa5ff1a;
+      font-size:11px;
+      margin-left:8px;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>🎛️ Cockpit Prof (local + lien privé)</h1>
+  <nav>
+    <button data-tab="dash" class="active">Dashboard</button>
+    <button data-tab="profs">Professeurs</button>
+    <button data-tab="classes">Classes</button>
+    <button data-tab="edt">EDT (A/B)</button>
+    <button data-tab="progress">Progression</button>
+    <button data-tab="controls">Contrôles</button>
+    <button data-tab="settings">Réglages</button>
+  </nav>
+
+  <div class="right">
+    <span class="pill"><span>🔐</span><span id="lockState">verrouillé</span></span>
+    <button class="btn" id="btnExport">Exporter</button>
+    <label class="btn" style="display:inline-block;">
+      Importer <input type="file" id="fileImport" accept="application/json" hidden />
+    </label>
+  </div>
+</header>
+
+<main>
+  <!-- DASH -->
+  <section id="tab-dash" class="tab">
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>Semaine</label>
+          <select id="dashWeek"></select>
+        </div>
+        <div>
+          <label>Prof absent (coché = absent)</label>
+          <select id="dashAbsentProf"></select>
+        </div>
+        <div>
+          <label>Filtrer par classe (optionnel)</label>
+          <select id="dashClass"></select>
+        </div>
+        <button class="btn primary" id="btnCompute">Voir créneaux récupérables</button>
+      </div>
+      <p class="muted">
+        Ici, le bouton ajoute une séance <span class="tagTemp">🩹 temporaire</span> au créneau (il ne remplace pas l’existant).
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px 0;">Résultat</h3>
+      <div id="dashResult" class="muted">Aucun calcul pour l’instant.</div>
+    </div>
+  </section>
+
+  <!-- PROFS -->
+  <section id="tab-profs" class="tab" style="display:none;">
+    <div class="grid grid-2">
+      <div class="card">
+        <h3 style="margin-top:0;">Ajouter / modifier un professeur</h3>
+        <div class="row">
+          <div>
+            <label>Nom</label>
+            <input id="profName" placeholder="Ex : Mme Durand (ou Moi-même)" />
+          </div>
+          <div>
+            <label>Matière</label>
+            <select id="profSubject"></select>
+          </div>
+          <div>
+            <label>Statut</label>
+            <select id="profStatus">
+              <option>Actif</option>
+              <option>Petite maladie</option>
+              <option>Maladie longue durée</option>
+              <option>Retraité</option>
+            </select>
+          </div>
+          <label style="display:flex; gap:8px; align-items:center; margin-top:18px;">
+            <input type="checkbox" id="profAbsent" />
+            Absent cette semaine
+          </label>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnSaveProf">Enregistrer</button>
+          <button class="btn" id="btnClearProf">Nouveau</button>
+          <button class="btn danger" id="btnDeleteProf" disabled>Supprimer</button>
+        </div>
+        <p class="muted tiny">Tip : clique un prof dans la liste pour l’éditer.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Liste des professeurs</h3>
+        <table>
+          <thead>
+            <tr><th>Nom</th><th>Matière</th><th>Statut</th><th>Absent ?</th></tr>
+          </thead>
+          <tbody id="profList"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLASSES -->
+  <section id="tab-classes" class="tab" style="display:none;">
+    <div class="grid grid-2">
+      <div class="card">
+        <h3 style="margin-top:0;">Ajouter / modifier une classe</h3>
+        <div class="row">
+          <div>
+            <label>Niveau</label>
+            <select id="classLevel">
+              <option value="6e">6e</option>
+              <option value="5e">5e</option>
+              <option value="4e">4e</option>
+              <option value="3e">3e</option>
+            </select>
+          </div>
+          <div>
+            <label>Nom</label>
+            <input id="className" placeholder="Ex : 601" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnSaveClass">Enregistrer</button>
+          <button class="btn" id="btnClearClass">Nouvelle</button>
+          <button class="btn danger" id="btnDeleteClass" disabled>Supprimer</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Liste des classes</h3>
+        <table>
+          <thead><tr><th>Niveau</th><th>Classe</th></tr></thead>
+          <tbody id="classList"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- EDT -->
+  <section id="tab-edt" class="tab" style="display:none;">
+    <div class="card">
+      <div class="row">
+        <div><label>Semaine</label><select id="edtWeek"></select></div>
+
+        <div style="min-width:260px;">
+          <label>Mode saisie rapide</label>
+          <div class="row" style="align-items:center;">
+            <label style="display:flex; gap:8px; align-items:center; margin:0;">
+              <input type="checkbox" id="edtQuickMode" />
+              Activer (mode “peinture”)
+            </label>
+            <span class="muted tiny">Clic + glisser sur les cases.</span>
+          </div>
+        </div>
+
+        <div><label>Prof (rapide)</label><select id="edtQuickProf"></select></div>
+        <div><label>Classe (rapide)</label><select id="edtQuickClass"></select></div>
+
+        <label style="display:flex; gap:8px; align-items:center; margin-top:18px;">
+          <input type="checkbox" id="edtReplace" />
+          Remplacer (vider la case)
+        </label>
+
+        <button class="btn" id="btnEdtHelp">Aide</button>
+      </div>
+
+      <p class="muted tiny">
+        <span class="kbd">Clic</span> sur une case = éditer. En mode rapide : <span class="kbd">clic maintenu + survol</span>.
+        Règle : “double prof même classe même créneau” autorisé seulement si au moins un prof est marqué Absent.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">EDT visuel (semaine complète)</h3>
+      <div class="edtWrap">
+        <table class="edtGrid" id="edtGrid"></table>
+      </div>
+
+      <div class="legend" id="classLegend"></div>
+
+      <p class="muted tiny" style="margin-top:10px;">
+        Couleurs de classes : elles s’affichent uniquement sur les séances du prof nommé “Moi-même”.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Liste des séances (vue rapide)</h3>
+      <table>
+        <thead><tr><th>Semaine</th><th>Jour</th><th>Horaire</th><th>Prof</th><th>Classe</th><th>Info</th><th></th></tr></thead>
+        <tbody id="sessionList"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PROGRESSION -->
+  <section id="tab-progress" class="tab" style="display:none;">
+    <div class="card">
+      <div class="row">
+        <div><label>Classe</label><select id="progClass"></select></div>
+        <div><label>Matière</label><select id="progSubject"></select></div>
+        <label style="display:flex; gap:8px; align-items:center; margin-top:18px;">
+          <input type="checkbox" id="progLock" />
+          Verrouiller cette matière
+        </label>
+        <button class="btn primary" id="btnAddTheme">Ajouter un thème</button>
+      </div>
+      <p class="muted tiny">La matière est mémorisée par classe. Si tu “verrouilles”, elle reste fixe.</p>
+    </div>
+    <div id="progressArea"></div>
+  </section>
+
+  <!-- CONTROLES -->
+  <section id="tab-controls" class="tab" style="display:none;">
+    <div class="card">
+      <div class="row">
+        <div><label>Matière</label><select id="ctlSubject"></select></div>
+        <div><label>Niveau</label><select id="ctlLevel"><option>6e</option><option>5e</option><option>4e</option><option>3e</option></select></div>
+        <div><label>Thème / chapitre</label><input id="ctlTheme" placeholder="Ex : Fractions / Révolution française..." /></div>
+        <div><label>Version</label><input id="ctlVersion" placeholder="A / B / C" /></div>
+        <div><label>PDF sujet</label><input id="ctlPdf" type="file" accept="application/pdf" /></div>
+        <button class="btn primary" id="btnAddControl">Ajouter contrôle</button>
+      </div>
+      <p class="muted tiny">Les PDF restent “local” (navigateur). Export JSON recommandé.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">🧠 Générateur de prompt (à copier dans ChatGPT)</h3>
+      <div class="row">
+        <div>
+          <label>Type</label>
+          <select id="genType">
+            <option value="lesson">Cours / séance</option>
+            <option value="sequence">Séquence</option>
+            <option value="control">Contrôle</option>
+            <option value="worksheet">Fiche d’exercices</option>
+          </select>
+        </div>
+        <div><label>Matière</label><select id="genSubject"></select></div>
+        <div><label>Niveau</label>
+          <select id="genLevel">
+            <option>6e</option><option>5e</option><option>4e</option><option>3e</option>
+          </select>
+        </div>
+        <div><label>Thème / chapitre</label><input id="genTheme" placeholder="Ex : Fractions / Révolution française..." /></div>
+        <div><label>Durée</label><input id="genDuration" placeholder="Ex : 55 min (ou 2×55)" /></div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div style="flex:1; min-width:320px;">
+          <label>Contraintes / objectifs (optionnel)</label>
+          <input id="genConstraints" style="width:100%; min-width:320px;" placeholder="Ex : différenciation, compétences visées, classe agitée..." />
+        </div>
+        <button class="btn primary" id="btnBuildPrompt">Générer le prompt</button>
+        <button class="btn" id="btnCopyPrompt">Copier</button>
+      </div>
+
+      <label style="margin-top:10px;">Prompt prêt à l’emploi</label>
+      <textarea id="genPrompt" class="mono" readonly placeholder="Clique “Générer le prompt”…"></textarea>
+      <p class="muted tiny">Tu colles ça dans ChatGPT → tu récupères un plan béton.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Attribution des versions aux classes</h3>
+      <div class="row">
+        <div><label>Contrôle</label><select id="assignControl"></select></div>
+        <div><label>Classe</label><select id="assignClass"></select></div>
+        <div><label>Version donnée</label><input id="assignVersion" placeholder="A / B" /></div>
+        <button class="btn primary" id="btnAssign">Assigner</button>
+      </div>
+      <div style="margin-top:10px;">
+        <table>
+          <thead><tr><th>Contrôle</th><th>Classe</th><th>Version</th><th></th></tr></thead>
+          <tbody id="assignList"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Contrôles</h3>
+      <table>
+        <thead><tr><th>Matière</th><th>Niveau</th><th>Thème</th><th>Version</th><th>PDF</th><th></th></tr></thead>
+        <tbody id="controlList"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings" class="tab" style="display:none;">
+    <div class="card">
+      <h3 style="margin-top:0;">🔐 Accès privé (mot de passe)</h3>
+      <p class="muted">Protection simple : sans le bon mot de passe, l’app n’affiche pas les données.</p>
+      <div class="row">
+        <div>
+          <label>Mot de passe (stocké en hash)</label>
+          <input id="pwSet" type="password" placeholder="Choisis un mot de passe" />
+        </div>
+        <button class="btn primary" id="btnSetPw">Définir / changer</button>
+        <button class="btn danger" id="btnClearPw">Supprimer le mot de passe</button>
+      </div>
+      <hr style="border:none;border-top:1px solid #6663;margin:14px 0;">
+      <h3 style="margin:0 0 8px 0;">📚 Matières</h3>
+      <div class="row">
+        <div>
+          <label>Ajouter une matière</label>
+          <input id="subAdd" placeholder="Ex : Latin" />
+        </div>
+        <button class="btn primary" id="btnAddSubject">Ajouter</button>
+      </div>
+      <div id="subjectChips" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+
+      <details style="margin-top:14px;">
+        <summary>🧰 Notes d’hébergement (lien privé)</summary>
+        <div class="muted" style="margin-top:8px;">
+          Héberge sur GitHub Pages et utilise une URL “non listée” (chemin long) + mot de passe.
+        </div>
+      </details>
+    </div>
+  </section>
+</main>
+
+<!-- Modal EDT -->
+<div class="modalBack" id="modalBack">
+  <div class="modal">
+    <div class="modalHeader">
+      <h3 id="modalTitle">Éditer</h3>
+      <div class="right">
+        <button class="btn" id="btnModalClose">Fermer</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <div class="row">
+        <div><label>Semaine</label><input id="mWeek" readonly /></div>
+        <div><label>Jour</label><input id="mDay" readonly /></div>
+        <div><label>Créneau</label><input id="mSlot" readonly /></div>
+      </div>
+      <hr style="border:none;border-top:1px solid #6663;margin:12px 0;">
+
+      <h4 style="margin:0 0 8px 0;">Séances déjà dans cette case</h4>
+      <div id="mExisting" class="muted">—</div>
+
+      <hr style="border:none;border-top:1px solid #6663;margin:12px 0;">
+      <h4 style="margin:0 0 8px 0;">Ajouter une séance</h4>
+      <div class="row">
+        <div><label>Prof</label><select id="mProf"></select></div>
+        <div><label>Classe</label><select id="mClass"></select></div>
+        <label style="display:flex; gap:8px; align-items:center; margin-top:18px;">
+          <input type="checkbox" id="mTemp" checked />
+          🩹 Temporaire
+        </label>
+        <button class="btn primary" id="btnModalAdd">Ajouter</button>
+      </div>
+      <p class="muted tiny">Double prof sur même classe/créneau autorisé seulement si au moins un des profs est “Absent”.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/** =========================
+ *  DONNÉES & STOCKAGE
+ *  ========================= */
+const KEY = "college_cockpit_v5";
+const KEY_PW = "college_cockpit_pw_hash";
+const KEY_PROG_PREF = "college_cockpit_prog_pref"; // { classId: "Matière" }
+const KEY_PROG_LOCK = "college_cockpit_prog_lock"; // { locked: bool, subject: "Matière" }
+
+const defaultSubjects = [
+  "Français","Mathématiques","Histoire-Géographie","Anglais","Espagnol",
+  "Physique-Chimie","SVT","Technologie","Arts plastiques"
+];
+
+function uid(){ return Math.random().toString(16).slice(2) + Date.now().toString(16); }
+
+function loadState(){
+  const raw = localStorage.getItem(KEY);
+  const base = raw ? JSON.parse(raw) : null;
+  if(base) return base;
+  return { subjects:[...defaultSubjects], profs:[], classes:[], sessions:[], progress:[], controls:[], assignments:[] };
+}
+let state = loadState();
+function saveState(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+function loadProgPref(){ try{return JSON.parse(localStorage.getItem(KEY_PROG_PREF)||"{}");}catch{return{};} }
+function saveProgPref(o){ localStorage.setItem(KEY_PROG_PREF, JSON.stringify(o)); }
+function loadProgLock(){ try{return JSON.parse(localStorage.getItem(KEY_PROG_LOCK)||'{"locked":false,"subject":""}');}catch{return{locked:false,subject:""};} }
+function saveProgLock(o){ localStorage.setItem(KEY_PROG_LOCK, JSON.stringify(o)); }
+
+async function sha256(text){
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+async function isUnlocked(){
+  const hash = localStorage.getItem(KEY_PW);
+  if(!hash) return true;
+  return sessionStorage.getItem("pw_ok")==="1";
+}
+async function lockUI(locked){
+  document.getElementById("lockState").textContent = locked ? "verrouillé" : "ouvert";
+  const main = document.querySelector("main");
+  if(locked){
+    main.innerHTML = `
+      <section class="card">
+        <h3 style="margin-top:0;">🔐 Page protégée</h3>
+        <p class="muted">Entre le mot de passe pour accéder à tes données.</p>
+        <div class="row">
+          <div><label>Mot de passe</label><input id="pwAsk" type="password" placeholder="Mot de passe" /></div>
+          <button class="btn primary" id="btnPwAsk">Déverrouiller</button>
+        </div>
+      </section>`;
+    document.getElementById("btnPwAsk").onclick = async () => {
+      const pw = document.getElementById("pwAsk").value || "";
+      const want = localStorage.getItem(KEY_PW);
+      const got = await sha256(pw);
+      if(got === want){ sessionStorage.setItem("pw_ok","1"); location.reload(); }
+      else alert("Mot de passe incorrect.");
+    };
+  } else location.reload();
+}
+
+/** =========================
+ *  EDT : CRENEAUX
+ *  ========================= */
+function timeToMin(t){ const [h,m]=t.split(":").map(Number); return h*60+m; }
+function minToTime(min){
+  const h = Math.floor(min/60).toString().padStart(2,"0");
+  const m = (min%60).toString().padStart(2,"0");
+  return `${h}:${m}`;
+}
+function buildSlots(){
+  const start = timeToMin("07:15");
+  const end = timeToMin("16:15");
+  const recess1 = [timeToMin("09:15"), timeToMin("09:30")];
+  const recess2 = [timeToMin("15:00"), timeToMin("15:15")];
+  let t = start, slots = [];
+  const overlaps = (a1,a2,b1,b2) => Math.max(a1,b1) < Math.min(a2,b2);
+  while(t + 55 <= end){
+    const nxt = t + 55;
+    if(overlaps(t,nxt,recess1[0],recess1[1])){ t = recess1[1]; continue; }
+    if(overlaps(t,nxt,recess2[0],recess2[1])){ t = recess2[1]; continue; }
+    slots.push({ start:t, end:nxt, label:`${minToTime(t)}–${minToTime(nxt)}` });
+    t = nxt;
+  }
+  return slots;
+}
+const SLOTS = buildSlots();
+const WEEKS = ["A","B"];
+const DAYS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi"];
+
+/** =========================
+ *  HELPERS
+ *  ========================= */
+function $(id){ return document.getElementById(id); }
+function setOptions(selectEl, items, getLabel, getValue){
+  selectEl.innerHTML = "";
+  for(const it of items){
+    const opt = document.createElement("option");
+    opt.value = getValue(it);
+    opt.textContent = getLabel(it);
+    selectEl.appendChild(opt);
+  }
+}
+function findProf(id){ return state.profs.find(p=>p.id===id); }
+function findClass(id){ return state.classes.find(c=>c.id===id); }
+function findControl(id){ return state.controls.find(c=>c.id===id); }
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;");
+}
+function isMoiMeme(prof){
+  const name = (prof?.name || "").trim().toLowerCase();
+  return name === "moi-même" || name === "moi-meme";
+}
+
+/** =========================
+ *  Couleurs de classes (utilisées seulement pour "Moi-même")
+ *  ========================= */
+function hashToHue(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+function classColor(classId){
+  const c = findClass(classId);
+  const key = c ? (c.id + "|" + c.level + "|" + c.name) : String(classId||"");
+  const hue = hashToHue(key);
+  return `hsl(${hue} 65% 45%)`;
+}
+function renderClassLegend(){
+  const box = $("classLegend");
+  if(!box) return;
+  box.innerHTML = "";
+  state.classes.forEach(c=>{
+    const col = classColor(c.id);
+    const el = document.createElement("div");
+    el.className = "legendItem";
+    el.innerHTML = `<span class="swatch" style="background:${col};"></span><span>${escapeHtml(c.level)} ${escapeHtml(c.name)}</span>`;
+    box.appendChild(el);
+  });
+  if(state.classes.length === 0) box.innerHTML = `<span class="muted tiny">Ajoute des classes pour afficher la légende couleurs.</span>`;
+}
+
+/** =========================
+ *  Selectors
+ *  ========================= */
+function renderSelectors(){
+  ["dashWeek","edtWeek"].forEach(id => {
+    const el = $(id);
+    if(el) setOptions(el, WEEKS, w=>`Semaine ${w}`, w=>w);
+  });
+
+  ["profSubject","ctlSubject","genSubject"].forEach(id => {
+    const el = $(id);
+    if(el) setOptions(el, state.subjects, s=>s, s=>s);
+  });
+
+  const profPick = (id) => {
+    const el = $(id);
+    if(!el) return;
+    const items = [{id:"", name:"—"}].concat(state.profs);
+    setOptions(el, items, p => p.id ? `${p.name} (${p.subject})` : "—", p => p.id);
+  };
+  ["dashAbsentProf","edtQuickProf","mProf"].forEach(profPick);
+
+  const classPickWithEmpty = (id) => {
+    const el = $(id);
+    if(!el) return;
+    const items = [{id:"", level:"", name:"—"}].concat(state.classes);
+    setOptions(el, items, c => c.id ? `${c.level} – ${c.name}` : "—", c => c.id);
+  };
+  ["dashClass","edtQuickClass","assignClass","mClass"].forEach(classPickWithEmpty);
+
+  // Progression classes (sans vide)
+  const progClass = $("progClass");
+  if(progClass){
+    if(state.classes.length){
+      setOptions(progClass, state.classes, c=>`${c.level} – ${c.name}`, c=>c.id);
+      if(!progClass.value) progClass.value = state.classes[0].id;
+    } else {
+      setOptions(progClass, [{id:""}], _=>"—", _=>"");
+    }
+  }
+
+  // Progression subjects + mémoire + lock
+  const progSub = $("progSubject");
+  const lockEl = $("progLock");
+  const pref = loadProgPref();
+  const lock = loadProgLock();
+
+  if(lockEl) lockEl.checked = !!lock.locked;
+
+  if(progSub){
+    if(state.subjects.length){
+      setOptions(progSub, state.subjects, s=>s, s=>s);
+
+      const classId = progClass?.value || "";
+      let wanted = "";
+
+      if(lock.locked && lock.subject && state.subjects.includes(lock.subject)){
+        wanted = lock.subject;
+        progSub.disabled = true;
+      } else {
+        progSub.disabled = false;
+        if(classId && pref[classId] && state.subjects.includes(pref[classId])) wanted = pref[classId];
+        else wanted = state.subjects[0];
+      }
+      progSub.value = wanted;
+    } else {
+      setOptions(progSub, [{v:""}], _=>"—", _=>"");
+    }
+  }
+
+  // Controls dropdown
+  const assignControl = $("assignControl");
+  if(assignControl){
+    const items = [{id:"", label:"—"}].concat(
+      state.controls.map(c=>({id:c.id, label:`${c.subject} ${c.level} • ${c.theme} (v${c.version})`}))
+    );
+    setOptions(assignControl, items, x=>x.label, x=>x.id);
+  }
+
+  if($("edtWeek") && !$("edtWeek").value) $("edtWeek").value = "A";
+  if($("dashWeek") && !$("dashWeek").value) $("dashWeek").value = "A";
+}
+
+/** =========================
+ *  Lists (profs/classes)
+ *  ========================= */
+function renderProfList(){
+  const tbody = $("profList");
+  if(!tbody) return;
+  tbody.innerHTML = "";
+  state.profs.forEach(p=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><button class="btn" style="padding:4px 8px;">${escapeHtml(p.name)}</button></td>
+                    <td>${escapeHtml(p.subject)}</td><td>${escapeHtml(p.status)}</td><td>${p.absent ? "✅" : ""}</td>`;
+    tr.querySelector("button").onclick = () => loadProfToForm(p.id);
+    tbody.appendChild(tr);
+  });
+}
+let editingProfId = null;
+function loadProfToForm(id){
+  const p = findProf(id);
+  if(!p) return;
+  editingProfId = id;
+  $("profName").value = p.name;
+  $("profSubject").value = p.subject;
+  $("profStatus").value = p.status;
+  $("profAbsent").checked = !!p.absent;
+  $("btnDeleteProf").disabled = false;
+}
+
+function renderClassList(){
+  const tbody = $("classList");
+  if(!tbody) return;
+  tbody.innerHTML = "";
+  state.classes.forEach(c=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${escapeHtml(c.level)}</td>
+                    <td><button class="btn" style="padding:4px 8px;">${escapeHtml(c.name)}</button></td>`;
+    tr.querySelector("button").onclick = () => loadClassToForm(c.id);
+    tbody.appendChild(tr);
+  });
+}
+let editingClassId = null;
+function loadClassToForm(id){
+  const c = findClass(id);
+  if(!c) return;
+  editingClassId = id;
+  $("classLevel").value = c.level;
+  $("className").value = c.name;
+  $("btnDeleteClass").disabled = false;
+}
+
+/** =========================
+ *  EDT rules
+ *  ========================= */
+function getCellSessions(week, day, slotLabel){
+  return state.sessions.filter(s => s.week===week && s.day===day && s.slotLabel===slotLabel);
+}
+function hasProfConflict(week, day, slotLabel, profId){
+  return state.sessions.some(s => s.week===week && s.day===day && s.slotLabel===slotLabel && s.profId===profId);
+}
+// Double prof même classe même créneau autorisé uniquement si au moins un prof (ancien ou nouveau) est absent
+function hasClassConflictUnlessSomeProfAbsent(week, day, slotLabel, classId, newProfId){
+  const existing = state.sessions.filter(s => s.week===week && s.day===day && s.slotLabel===slotLabel && s.classId===classId);
+  if(existing.length === 0) return false;
+  if(existing.every(s => s.profId === newProfId)) return false;
+
+  const newProf = findProf(newProfId);
+  const newProfAbsent = !!(newProf && newProf.absent);
+
+  const existingHasAbsent = existing.some(s => {
+    const p = findProf(s.profId);
+    return !!(p && p.absent);
+  });
+
+  return !(newProfAbsent || existingHasAbsent);
+}
+
+function addSessionWithRules(week, day, slotLabel, profId, classId, replace=false, temporary=false){
+  if(!profId || !classId) return { ok:false, msg:"Choisis un prof + une classe." };
+
+  // conflit prof strict
+  if(hasProfConflict(week, day, slotLabel, profId)){
+    return { ok:false, msg:"Conflit : ce prof a déjà une séance à ce créneau." };
+  }
+
+  // conflit classe/prof sauf si un prof absent
+  if(hasClassConflictUnlessSomeProfAbsent(week, day, slotLabel, classId, profId)){
+    return { ok:false, msg:"Conflit : classe déjà sur ce créneau avec un autre prof (autorisé seulement si un des profs est absent)." };
+  }
+
+  if(replace){
+    state.sessions = state.sessions.filter(s => !(s.week===week && s.day===day && s.slotLabel===slotLabel));
+  }
+
+  state.sessions.push({ id: uid(), week, day, slotLabel, profId, classId, temporary: !!temporary });
+  saveState();
+  return { ok:true };
+}
+
+function toggleSameSession(week, day, slotLabel, profId, classId){
+  const existingSame = state.sessions.find(s =>
+    s.week===week && s.day===day && s.slotLabel===slotLabel && s.profId===profId && s.classId===classId
+  );
+  if(existingSame){
+    state.sessions = state.sessions.filter(x=>x.id!==existingSame.id);
+    saveState();
+    return { toggled:"removed" };
+  }
+  return { toggled:"none" };
+}
+
+/** Dashboard: ajoute une couverture temporaire (ne remplace pas) */
+function addTemporaryCover(week, day, slotLabel, newProfId, classId){
+  const res = addSessionWithRules(week, day, slotLabel, newProfId, classId, false, true);
+  if(!res.ok) return { ok:false, msg: res.msg };
+  return { ok:true };
+}
+
+/** =========================
+ *  EDT render
+ *  ========================= */
+function renderEDTGrid(){
+  const table = $("edtGrid");
+  if(!table) return;
+  const week = $("edtWeek")?.value || "A";
+
+  table.innerHTML = "";
+  const thead = document.createElement("thead");
+  const hr = document.createElement("tr");
+  hr.innerHTML = `<th style="width:140px;">Créneau</th>` + DAYS.map(d=>`<th>${d}</th>`).join("");
+  thead.appendChild(hr);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  SLOTS.forEach(slot=>{
+    const tr = document.createElement("tr");
+    const th = document.createElement("td");
+    th.innerHTML = `<span class="mono">${slot.label}</span>`;
+    tr.appendChild(th);
+
+    DAYS.forEach(day=>{
+      const td = document.createElement("td");
+      const btn = document.createElement("button");
+      btn.className = "cellBtn";
+      btn.dataset.week = week;
+      btn.dataset.day = day;
+      btn.dataset.slot = slot.label;
+
+      const cellSessions = getCellSessions(week, day, slot.label);
+
+      if(cellSessions.length === 0){
+        btn.innerHTML = `<div class="cellEmpty">—</div>`;
+      } else {
+        const lines = cellSessions.map(s=>{
+          const p = findProf(s.profId);
+          const c = findClass(s.classId);
+          const pName = p ? p.name : "?";
+          const cName = c ? `${c.level} ${c.name}` : "?";
+          const absentMark = (p && p.absent) ? " • ABSENT" : "";
+          const tempMark = s.temporary ? `<span class="tagTemp">🩹 temporaire</span>` : "";
+
+          // Couleur uniquement si le prof est "Moi-même"
+          const useColor = isMoiMeme(p);
+          const col = useColor ? classColor(s.classId) : "currentColor";
+          const borderCol = useColor ? `${col}55` : "#6664";
+          const bg = useColor
+            ? `background: color-mix(in oklab, ${col} 20%, Canvas);`
+            : `background: color-mix(in oklab, Canvas 85%, transparent);`;
+
+          return `<div class="cellLine" style="border-color:${borderCol}; ${bg}">
+                    <div style="font-weight:600; ${useColor ? `color:${col};` : ""}">${escapeHtml(cName)} ${tempMark}</div>
+                    <div class="tiny muted">${escapeHtml(pName)} · ${escapeHtml(p ? p.subject : "?")}${absentMark}</div>
+                  </div>`;
+        }).join("");
+        btn.innerHTML = `<div class="cellLines">${lines}</div>`;
+      }
+
+      td.appendChild(btn);
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+}
+
+function renderSessionsList(){
+  const tbody = $("sessionList");
+  if(!tbody) return;
+  const week = $("edtWeek")?.value || "A";
+  const sessions = state.sessions
+    .filter(s=>s.week===week)
+    .sort((a,b)=> (a.day+b.slotLabel).localeCompare(b.day+b.slotLabel));
+
+  tbody.innerHTML = "";
+  sessions.forEach(s=>{
+    const p = findProf(s.profId);
+    const c = findClass(s.classId);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(s.week)}</td>
+      <td>${escapeHtml(s.day)}</td>
+      <td>${escapeHtml(s.slotLabel)}</td>
+      <td>${p ? escapeHtml(p.name) : "?"}</td>
+      <td>${c ? `${escapeHtml(c.level)} ${escapeHtml(c.name)}` : "?"}</td>
+      <td>${s.temporary ? `🩹 temporaire` : ``}</td>
+      <td><button class="btn danger" style="padding:4px 8px;">Supprimer</button></td>
+    `;
+    tr.querySelector("button").onclick = () => {
+      state.sessions = state.sessions.filter(x=>x.id!==s.id);
+      saveState(); renderAll();
+    };
+    tbody.appendChild(tr);
+  });
+}
+
+/** =========================
+ *  EDT interactions + modal
+ *  ========================= */
+let modalCtx = { week:"A", day:"", slotLabel:"" };
+function openModal(){ $("modalBack").style.display = "flex"; }
+function closeModal(){ $("modalBack").style.display = "none"; }
+
+function renderModal(){
+  const {week, day, slotLabel} = modalCtx;
+  $("modalTitle").textContent = `Éditer • Semaine ${week} • ${day} • ${slotLabel}`;
+  $("mWeek").value = week; $("mDay").value = day; $("mSlot").value = slotLabel;
+
+  const existing = getCellSessions(week, day, slotLabel);
+  const box = $("mExisting");
+  if(existing.length === 0){
+    box.innerHTML = `<div class="muted">Aucune séance dans cette case.</div>`;
+  } else {
+    box.innerHTML = existing.map(s=>{
+      const p = findProf(s.profId);
+      const c = findClass(s.classId);
+      const absentMark = (p && p.absent) ? " (ABSENT)" : "";
+      const tempMark = s.temporary ? " 🩹" : "";
+      const label = `${c ? c.level+" "+c.name : "?"} — ${p ? p.name : "?"} (${p ? p.subject : "?"})${absentMark}${tempMark}`;
+      return `<div class="row" style="align-items:center; margin:6px 0;">
+        <span class="pill">${escapeHtml(label)}</span>
+        <button class="btn danger" data-del="${s.id}" style="margin-left:auto;">Supprimer</button>
+      </div>`;
+    }).join("");
+
+    box.querySelectorAll("button[data-del]").forEach(b=>{
+      b.onclick = () => {
+        const id = b.dataset.del;
+        state.sessions = state.sessions.filter(x=>x.id!==id);
+        saveState();
+        renderAll();
+        renderModal();
+      };
+    });
+  }
+}
+
+/** Mode peinture */
+let painting = false;
+let paintedOnce = new Set();
+
+function onGridCellAction(btn, mode){
+  const week = btn.dataset.week;
+  const day = btn.dataset.day;
+  const slotLabel = btn.dataset.slot;
+
+  const quick = $("edtQuickMode")?.checked;
+  if(!quick){
+    modalCtx = { week, day, slotLabel };
+    renderSelectors();
+    renderModal();
+    openModal();
+    return;
+  }
+
+  const profId = $("edtQuickProf")?.value;
+  const classId = $("edtQuickClass")?.value;
+  const replace = $("edtReplace")?.checked;
+
+  if(!profId || !classId){
+    if(mode === "click") alert("Mode rapide : choisis un prof + une classe.");
+    return;
+  }
+
+  const key = `${week}|${day}|${slotLabel}|${profId}|${classId}|${replace?"R":"A"}`;
+  if(mode === "paint" && paintedOnce.has(key)) return;
+  paintedOnce.add(key);
+
+  const t = toggleSameSession(week, day, slotLabel, profId, classId);
+  if(t.toggled === "removed"){ renderAll(); return; }
+
+  const res = addSessionWithRules(week, day, slotLabel, profId, classId, !!replace, false);
+  if(!res.ok && mode === "click") alert(res.msg);
+  renderAll();
+}
+
+/** =========================
+ *  PROGRESSION
+ *  ========================= */
+function getOrCreateProgress(classId, subject){
+  let rec = state.progress.find(p=>p.classId===classId && p.subject===subject);
+  if(!rec){ rec = { id: uid(), classId, subject, themes: [] }; state.progress.push(rec); }
+  return rec;
+}
+function computeThemeStatus(theme){
+  const today = new Date();
+  const ps = theme.planStart ? new Date(theme.planStart) : null;
+  const pe = theme.planEnd ? new Date(theme.planEnd) : null;
+
+  const total = theme.items.length || 1;
+  const done = theme.items.filter(i=>i.done).length;
+  const realPct = Math.round((done/total)*100);
+
+  let expectedPct = null;
+  if(ps && pe && pe > ps){
+    const span = pe - ps;
+    const pos = Math.min(Math.max(today - ps, 0), span);
+    expectedPct = Math.round((pos/span)*100);
+  }
+
+  let status = "Dans les temps";
+  let cls = "warn";
+  if(expectedPct === null){ status = "Sans planning"; cls = "warn"; }
+  else if(realPct >= expectedPct + 10){ status = "En avance"; cls = "ok"; }
+  else if(realPct + 10 < expectedPct){ status = "En retard"; cls = "bad"; }
+
+  return { realPct, expectedPct, status, cls };
+}
+
+function renderProgress(){
+  const area = $("progressArea");
+  if(!area) return;
+
+  const classId = $("progClass")?.value;
+  const subject = $("progSubject")?.value;
+
+  if(!classId || !subject){
+    area.innerHTML = `<div class="card muted">Ajoute une classe + une matière, puis sélectionne-les.</div>`;
+    return;
+  }
+
+  const rec = getOrCreateProgress(classId, subject);
+  saveState();
+
+  area.innerHTML = "";
+  if(rec.themes.length === 0){
+    area.innerHTML = `<div class="card muted">Aucun thème. Clique “Ajouter un thème”.</div>`;
+    return;
+  }
+
+  rec.themes.forEach(theme=>{
+    const meta = computeThemeStatus(theme);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="row" style="align-items:center;">
+        <div style="min-width:240px;">
+          <strong>${escapeHtml(theme.title)}</strong>
+          <div class="tiny muted">${theme.planStart || "—"} → ${theme.planEnd || "—"}</div>
+        </div>
+        <span class="pill ${meta.cls}">📈 ${meta.realPct}% • ${meta.status}${meta.expectedPct!==null ? ` (attendu ${meta.expectedPct}%)` : ""}</span>
+        <button class="btn danger" style="margin-left:auto;" title="Supprimer le thème">Supprimer</button>
+      </div>
+
+      <div class="bar" style="color:${meta.cls==='ok'?'#2ecc71':meta.cls==='bad'?'#e74c3c':'#f39c12'}; margin:10px 0;">
+        <div style="width:${meta.realPct}%"></div>
+      </div>
+
+      <div class="row">
+        <div><label>Début prévu</label><input type="date" data-action="ps" value="${theme.planStart||""}"></div>
+        <div><label>Fin prévue</label><input type="date" data-action="pe" value="${theme.planEnd||""}"></div>
+        <button class="btn" data-action="addItem">+ Sous-thème</button>
+      </div>
+
+      <table style="margin-top:10px;">
+        <thead><tr><th>Fait</th><th>Sous-thème</th><th>Commentaire</th><th></th></tr></thead>
+        <tbody data-items></tbody>
+      </table>
+    `;
+
+    card.querySelector(".btn.danger").onclick = () => {
+      if(confirm("Supprimer ce thème ?")){
+        rec.themes = rec.themes.filter(t=>t.id!==theme.id);
+        saveState(); renderAll();
+      }
+    };
+
+    card.querySelector('input[data-action="ps"]').onchange = (e)=>{ theme.planStart = e.target.value; saveState(); renderAll(); };
+    card.querySelector('input[data-action="pe"]').onchange = (e)=>{ theme.planEnd = e.target.value; saveState(); renderAll(); };
+
+    card.querySelector('button[data-action="addItem"]').onclick = () => {
+      const text = prompt("Nom du sous-thème ?");
+      if(!text) return;
+      theme.items.push({ id: uid(), text, done:false, comment:"" });
+      saveState(); renderAll();
+    };
+
+    const tbody = card.querySelector("tbody[data-items]");
+    theme.items.forEach(item=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input type="checkbox" ${item.done ? "checked":""}></td>
+        <td><input value="${escapeHtml(item.text)}" style="min-width:260px;"></td>
+        <td><input value="${escapeHtml(item.comment||"")}" style="min-width:320px;"></td>
+        <td><button class="btn danger" style="padding:4px 8px;">×</button></td>
+      `;
+      const [cb, tx, cm] = tr.querySelectorAll("input");
+      cb.onchange = (e)=>{ item.done = e.target.checked; saveState(); renderAll(); };
+      tx.onchange = (e)=>{ item.text = e.target.value; saveState(); };
+      cm.onchange = (e)=>{ item.comment = e.target.value; saveState(); };
+      tr.querySelector("button").onclick = ()=>{ theme.items = theme.items.filter(x=>x.id!==item.id); saveState(); renderAll(); };
+      tbody.appendChild(tr);
+    });
+
+    area.appendChild(card);
+  });
+}
+
+/** =========================
+ *  Dashboard (avec ajout temporaire)
+ *  ========================= */
+function computeAvailability(){
+  const week = $("dashWeek").value || "A";
+  const absentProfId = $("dashAbsentProf").value;
+  const classFilter = $("dashClass").value || "";
+
+  if(!absentProfId){
+    $("dashResult").innerHTML = `<span class="muted">Choisis un prof absent.</span>`;
+    return;
+  }
+
+  const absentSessions = state.sessions
+    .filter(s => s.week===week && s.profId===absentProfId)
+    .filter(s => !classFilter || s.classId===classFilter);
+
+  if(absentSessions.length === 0){
+    $("dashResult").innerHTML = `<span class="muted">Aucune séance trouvée pour ce prof sur la semaine ${week}.</span>`;
+    return;
+  }
+
+  const result = absentSessions.map(s=>{
+    const busyProfIds = new Set(
+      state.sessions
+        .filter(x=>x.week===week && x.day===s.day && x.slotLabel===s.slotLabel)
+        .map(x=>x.profId)
+    );
+    busyProfIds.add(absentProfId);
+
+    const availableProfs = state.profs
+      .filter(p=>p.status!=="Retraité")
+      .filter(p=>!busyProfIds.has(p.id))
+      .sort((a,b)=>a.name.localeCompare(b.name));
+
+    const cls = findClass(s.classId);
+    const clsLabel = cls ? `${cls.level} ${cls.name}` : "Classe ?";
+
+    return { session:s, clsLabel, availableProfs };
+  });
+
+  const html = result.map((r, idx)=>{
+    const avList = r.availableProfs;
+
+    const avSelect = avList.length
+      ? `<select data-pick="${idx}" style="min-width:260px;">
+          ${avList.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.subject)})</option>`).join("")}
+        </select>`
+      : `<span class="danger">Personne de libre détecté</span>`;
+
+    const btnAddTemp = avList.length
+      ? `<button class="btn primary" data-action="addtemp" data-i="${idx}">🩹 Ajouter temporaire</button>`
+      : "";
+
+    return `
+      <div class="card">
+        <div class="row" style="align-items:center;">
+          <span class="pill">Semaine ${week}</span>
+          <strong>${escapeHtml(r.session.day)} • ${escapeHtml(r.session.slotLabel)}</strong>
+          <span class="pill">${escapeHtml(r.clsLabel)}</span>
+        </div>
+
+        <div class="row" style="margin-top:10px; align-items:center;">
+          <div class="muted" style="min-width:120px;">Remplaçant :</div>
+          ${avSelect}
+          ${btnAddTemp}
+          <button class="btn" data-action="gotoEdt" data-i="${idx}">Voir l’EDT</button>
+        </div>
+        <div class="muted tiny" style="margin-top:8px;">Le bouton ajoute une séance 🩹 sans supprimer l’existant.</div>
+      </div>
+    `;
+  }).join("");
+
+  $("dashResult").innerHTML = html;
+
+  $("dashResult").querySelectorAll('button[data-action="addtemp"]').forEach(btn=>{
+    btn.onclick = () => {
+      const i = Number(btn.dataset.i);
+      const r = result[i];
+      const pick = $("dashResult").querySelector(`select[data-pick="${i}"]`);
+      const newProfId = pick?.value;
+      if(!newProfId) return;
+
+      const out = addTemporaryCover(week, r.session.day, r.session.slotLabel, newProfId, r.session.classId);
+      if(!out.ok){ alert(out.msg || "Impossible d’ajouter."); return; }
+
+      activateTab("edt");
+      $("edtWeek").value = week;
+      renderAll();
+    };
+  });
+
+  $("dashResult").querySelectorAll('button[data-action="gotoEdt"]').forEach(btn=>{
+    btn.onclick = () => {
+      activateTab("edt");
+      $("edtWeek").value = week;
+      renderAll();
+    };
+  });
+}
+
+/** =========================
+ *  Controls / Assignments / Subjects
+ *  ========================= */
+function renderSubjects(){
+  const chips = $("subjectChips");
+  if(!chips) return;
+  chips.innerHTML = "";
+  state.subjects.forEach((s, idx) => {
+    const chip = document.createElement("span");
+    chip.className = "pill";
+    chip.innerHTML = `<span>${escapeHtml(s)}</span> <button class="btn danger" style="padding:2px 8px;border-radius:999px;" title="Supprimer">×</button>`;
+    chip.querySelector("button").onclick = () => {
+      if(confirm(`Supprimer la matière "${s}" ?`)){
+        state.subjects.splice(idx,1);
+        saveState();
+        renderAll();
+      }
+    };
+    chips.appendChild(chip);
+  });
+}
+function renderControls(){
+  const tbody = $("controlList");
+  if(!tbody) return;
+  tbody.innerHTML = "";
+  state.controls.forEach(c=>{
+    const tr = document.createElement("tr");
+    const link = c.pdfDataUrl ? `<a href="${c.pdfDataUrl}" download="${escapeHtml(c.pdfName || 'sujet.pdf')}">Télécharger</a>` : "";
+    tr.innerHTML = `
+      <td>${escapeHtml(c.subject)}</td><td>${escapeHtml(c.level)}</td><td>${escapeHtml(c.theme)}</td><td>${escapeHtml(c.version)}</td>
+      <td>${link}</td>
+      <td><button class="btn danger" style="padding:4px 8px;">Supprimer</button></td>
+    `;
+    tr.querySelector("button").onclick = () => {
+      state.controls = state.controls.filter(x=>x.id!==c.id);
+      state.assignments = state.assignments.filter(a=>a.controlId!==c.id);
+      saveState(); renderAll();
+    };
+    tbody.appendChild(tr);
+  });
+}
+function renderAssignments(){
+  const tbody = $("assignList");
+  if(!tbody) return;
+  tbody.innerHTML = "";
+  state.assignments.forEach(a=>{
+    const ctl = findControl(a.controlId);
+    const cls = findClass(a.classId);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${ctl ? `${escapeHtml(ctl.subject)} ${escapeHtml(ctl.level)} • ${escapeHtml(ctl.theme)}` : "?"}</td>
+      <td>${cls ? `${escapeHtml(cls.level)} ${escapeHtml(cls.name)}` : "?"}</td>
+      <td>${escapeHtml(a.version)}</td>
+      <td><button class="btn danger" style="padding:4px 8px;">Supprimer</button></td>
+    `;
+    tr.querySelector("button").onclick = () => {
+      state.assignments = state.assignments.filter(x=>x.id!==a.id);
+      saveState(); renderAll();
+    };
+    tbody.appendChild(tr);
+  });
+}
+
+/** =========================
+ *  NAV
+ *  ========================= */
+function activateTab(name){
+  document.querySelectorAll("nav button").forEach(b=>{
+    b.classList.toggle("active", b.dataset.tab===name);
+  });
+  document.querySelectorAll("main section.tab").forEach(sec=>{
+    sec.style.display = (sec.id === `tab-${name}`) ? "" : "none";
+  });
+
+  if(name === "progress") renderProgress();
+  if(name === "edt") { renderEDTGrid(); renderSessionsList(); renderClassLegend(); }
+}
+
+/** =========================
+ *  Export / Import
+ *  ========================= */
+function download(filename, text){
+  const blob = new Blob([text], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/** =========================
+ *  Prompt generator
+ *  ========================= */
+function buildPrompt(){
+  const type = $("genType").value;
+  const subject = $("genSubject").value;
+  const level = $("genLevel").value;
+  const theme = ($("genTheme").value||"").trim();
+  const duration = ($("genDuration").value||"").trim() || "55 min";
+  const constraints = ($("genConstraints").value||"").trim();
+
+  if(!theme){ alert("Renseigne au moins le thème/chapitre."); return; }
+
+  const baseContext = `
+Tu es un professeur expérimenté en ${subject} (niveau ${level}), collège.
+Thème/chapitre : ${theme}.
+Durée : ${duration}.
+Contraintes / objectifs : ${constraints || "aucune contrainte particulière"}.
+Style : clair, structuré, prêt à utiliser. Prévois différenciation + remédiation.
+`.trim();
+
+  let prompt = "";
+  if(type === "lesson"){
+    prompt = `
+${baseContext}
+
+Génère une séance complète :
+1) Objectifs + compétences.
+2) Pré-requis + erreurs fréquentes (et parades).
+3) Déroulé minute par minute.
+4) Trace écrite (version élève + version à trous).
+5) Exercices : 3 niveaux + correction.
+6) Exit ticket 5 min.
+7) Devoir maison court + adaptation.
+Ajoute une variante “sans vidéoprojecteur” et une variante “classe agitée”.
+`.trim();
+  } else if(type === "sequence"){
+    prompt = `
+${baseContext}
+
+Construis une séquence complète (4 à 6 séances) :
+- Pour chaque séance : objectifs, activités, trace écrite, exercices différenciés, éval formative.
+- Évaluation finale + barème + grille compétences.
+- Remédiation : plan de rattrapage en 1 séance.
+`.trim();
+  } else if(type === "control"){
+    prompt = `
+${baseContext}
+
+Crée un contrôle complet :
+- 2 versions (A/B) équivalentes.
+- Barème détaillé + grille de correction.
+- Différenciation : 1 exercice bonus + une version simplifiée.
+- Correction complète + critères de réussite.
+Format prêt à coller dans un document.
+`.trim();
+  } else {
+    prompt = `
+${baseContext}
+
+Génère une fiche d’exercices :
+- 12 exercices progressifs (3 échauffement, 6 entraînement, 3 challenge).
+- Correction complète.
+- Mini-rappel de cours (5 lignes max).
+- Pour chaque exercice : objectif + compétence.
+`.trim();
+  }
+  $("genPrompt").value = prompt;
+}
+async function copyPrompt(){
+  const txt = $("genPrompt").value || "";
+  if(!txt){ alert("Rien à copier : génère le prompt d’abord."); return; }
+  try{ await navigator.clipboard.writeText(txt); alert("Prompt copié ✅"); }
+  catch(e){
+    const ta = $("genPrompt");
+    ta.removeAttribute("readonly");
+    ta.select();
+    document.execCommand("copy");
+    ta.setAttribute("readonly","readonly");
+    alert("Prompt copié ✅");
+  }
+}
+
+/** =========================
+ *  UI wiring
+ *  ========================= */
+function wireUI(){
+  // nav
+  document.querySelectorAll("nav button").forEach(btn=>{
+    btn.onclick = ()=> activateTab(btn.dataset.tab);
+  });
+
+  // profs CRUD
+  $("btnSaveProf").onclick = () => {
+    const name = $("profName").value.trim();
+    const subject = $("profSubject").value;
+    if(!name){ alert("Nom requis."); return; }
+    const rec = { id: editingProfId || uid(), name, subject, status: $("profStatus").value, absent: $("profAbsent").checked };
+    if(editingProfId){
+      const idx = state.profs.findIndex(p=>p.id===editingProfId);
+      state.profs[idx] = rec;
+    } else state.profs.push(rec);
+    saveState();
+    editingProfId = null;
+    $("btnDeleteProf").disabled = true;
+    $("profName").value = ""; $("profAbsent").checked=false;
+    renderAll();
+  };
+  $("btnClearProf").onclick = ()=>{ editingProfId=null; $("btnDeleteProf").disabled=true; $("profName").value=""; $("profAbsent").checked=false; };
+  $("btnDeleteProf").onclick = ()=>{
+    if(!editingProfId) return;
+    if(confirm("Supprimer ce professeur ? (ses séances EDT seront aussi supprimées)")){
+      const id = editingProfId;
+      state.profs = state.profs.filter(p=>p.id!==id);
+      state.sessions = state.sessions.filter(s=>s.profId!==id);
+      saveState();
+      editingProfId=null;
+      $("btnDeleteProf").disabled = true;
+      $("profName").value=""; $("profAbsent").checked=false;
+      renderAll();
+    }
+  };
+
+  // classes CRUD
+  $("btnSaveClass").onclick = () => {
+    const level = $("classLevel").value;
+    const name = $("className").value.trim();
+    if(!name){ alert("Nom de classe requis."); return; }
+    const rec = { id: editingClassId || uid(), level, name };
+    if(editingClassId){
+      const idx = state.classes.findIndex(c=>c.id===editingClassId);
+      state.classes[idx] = rec;
+    } else state.classes.push(rec);
+    saveState();
+    editingClassId=null;
+    $("btnDeleteClass").disabled = true;
+    $("className").value="";
+    renderAll();
+  };
+  $("btnClearClass").onclick = ()=>{ editingClassId=null; $("btnDeleteClass").disabled=true; $("className").value=""; };
+  $("btnDeleteClass").onclick = ()=>{
+    if(!editingClassId) return;
+    if(confirm("Supprimer cette classe ? (ses séances EDT et progressions associées seront aussi supprimées)")){
+      const id = editingClassId;
+      state.classes = state.classes.filter(c=>c.id!==id);
+      state.sessions = state.sessions.filter(s=>s.classId!==id);
+      state.progress = state.progress.filter(p=>p.classId!==id);
+      state.assignments = state.assignments.filter(a=>a.classId!==id);
+      saveState();
+      editingClassId=null;
+      $("btnDeleteClass").disabled = true;
+      $("className").value="";
+      renderAll();
+    }
+  };
+
+  // EDT week change
+  $("edtWeek").onchange = ()=>{ renderEDTGrid(); renderSessionsList(); renderClassLegend(); };
+
+  // EDT help
+  $("btnEdtHelp").onclick = ()=>{
+    alert(
+`EDT :
+- Clic sur une case = édition détaillée.
+- Mode rapide “peinture” : choisis prof+classe, maintiens le clic et passe sur les cases.
+- Remplacer = vide la case avant d’ajouter.
+- Double prof même classe/créneau : autorisé uniquement si au moins un prof est “Absent”.
+- 🩹 = séance ajoutée temporairement (souvent depuis le dashboard).`
+    );
+  };
+
+  // Modal
+  $("btnModalClose").onclick = closeModal;
+  $("modalBack").onclick = (e)=>{ if(e.target.id==="modalBack") closeModal(); };
+  $("btnModalAdd").onclick = ()=>{
+    const week = modalCtx.week, day = modalCtx.day, slotLabel = modalCtx.slotLabel;
+    const profId = $("mProf").value, classId = $("mClass").value;
+    const temporary = $("mTemp").checked;
+    const res = addSessionWithRules(week, day, slotLabel, profId, classId, false, temporary);
+    if(!res.ok){ alert(res.msg); return; }
+    renderAll(); renderModal();
+  };
+
+  // Dashboard
+  $("btnCompute").onclick = computeAvailability;
+
+  // Progression
+  $("btnAddTheme").onclick = ()=>{
+    const classId = $("progClass").value;
+    const subject = $("progSubject").value;
+    if(!classId || !subject){ alert("Choisis une classe + une matière."); return; }
+    const title = prompt("Nom du thème ?");
+    if(!title) return;
+    const rec = getOrCreateProgress(classId, subject);
+    rec.themes.push({ id: uid(), title, planStart:"", planEnd:"", items: [] });
+    saveState();
+    renderAll();
+    activateTab("progress");
+  };
+
+  $("progClass").onchange = () => {
+    renderSelectors();
+    renderProgress();
+  };
+  $("progSubject").onchange = () => {
+    const classId = $("progClass").value;
+    const subject = $("progSubject").value;
+    const pref = loadProgPref();
+    if(classId && subject){ pref[classId] = subject; saveProgPref(pref); }
+    renderProgress();
+  };
+  if($("progLock")){
+    $("progLock").onchange = () => {
+      const locked = $("progLock").checked;
+      const subject = $("progSubject").value;
+      saveProgLock({ locked, subject: locked ? subject : "" });
+      renderSelectors();
+      renderProgress();
+    };
+  }
+
+  // Controls add
+  $("btnAddControl").onclick = async ()=>{
+    const subject = $("ctlSubject").value;
+    const level = $("ctlLevel").value;
+    const theme = $("ctlTheme").value.trim();
+    const version = ($("ctlVersion").value || "").trim();
+    if(!theme || !version){ alert("Thème + version requis."); return; }
+
+    const file = $("ctlPdf").files[0];
+    let pdfName="", pdfDataUrl="";
+    if(file){
+      pdfName = file.name;
+      const buf = await file.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      pdfDataUrl = `data:application/pdf;base64,${b64}`;
+    }
+
+    state.controls.push({ id: uid(), subject, level, theme, version, pdfName, pdfDataUrl });
+    $("ctlTheme").value=""; $("ctlVersion").value=""; $("ctlPdf").value="";
+    saveState(); renderAll();
+  };
+
+  // assign
+  $("btnAssign").onclick = ()=>{
+    const controlId = $("assignControl").value;
+    const classId = $("assignClass").value;
+    const version = ($("assignVersion").value || "").trim();
+    if(!controlId || !classId || !version){ alert("Contrôle + classe + version requis."); return; }
+    state.assignments.push({ id: uid(), controlId, classId, version });
+    $("assignVersion").value="";
+    saveState(); renderAll();
+  };
+
+  // settings password
+  $("btnSetPw").onclick = async ()=>{
+    const pw = $("pwSet").value;
+    if(!pw){ alert("Entre un mot de passe."); return; }
+    const hash = await sha256(pw);
+    localStorage.setItem(KEY_PW, hash);
+    sessionStorage.setItem("pw_ok","1");
+    alert("Mot de passe défini.");
+    location.reload();
+  };
+  $("btnClearPw").onclick = ()=>{
+    if(confirm("Supprimer la protection par mot de passe ?")){
+      localStorage.removeItem(KEY_PW);
+      sessionStorage.removeItem("pw_ok");
+      location.reload();
+    }
+  };
+
+  // settings subjects
+  $("btnAddSubject").onclick = ()=>{
+    const s = ($("subAdd").value || "").trim();
+    if(!s) return;
+    if(state.subjects.includes(s)){ alert("Déjà présent."); return; }
+    state.subjects.push(s);
+    $("subAdd").value="";
+    saveState(); renderAll();
+  };
+
+  // export/import
+  $("btnExport").onclick = ()=>{
+    const payload = { exportedAt: new Date().toISOString(), state };
+    download("college_cockpit_export.json", JSON.stringify(payload, null, 2));
+  };
+  $("fileImport").onchange = async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const text = await file.text();
+    try{
+      const payload = JSON.parse(text);
+      if(!payload.state) throw new Error("format");
+      state = payload.state;
+      saveState();
+      alert("Import OK.");
+      location.reload();
+    }catch(err){
+      alert("Import impossible : fichier non valide.");
+    }
+  };
+
+  // prompt
+  $("btnBuildPrompt").onclick = buildPrompt;
+  $("btnCopyPrompt").onclick = copyPrompt;
+
+  // EDT event delegation + mode peinture
+  const grid = $("edtGrid");
+  if(grid){
+    grid.addEventListener("mousedown", (e)=>{
+      const btn = e.target.closest(".cellBtn");
+      if(!btn) return;
+      painting = true;
+      paintedOnce = new Set();
+      onGridCellAction(btn, "click");
+    });
+    grid.addEventListener("mouseover", (e)=>{
+      if(!painting) return;
+      const btn = e.target.closest(".cellBtn");
+      if(!btn) return;
+      onGridCellAction(btn, "paint");
+    });
+    window.addEventListener("mouseup", ()=>{
+      painting = false;
+      paintedOnce = new Set();
+    });
+  }
+}
+
+function renderAll(){
+  renderSelectors();
+  renderProfList();
+  renderClassList();
+  renderEDTGrid();
+  renderSessionsList();
+  renderClassLegend();
+  renderProgress();
+  renderControls();
+  renderAssignments();
+  renderSubjects();
+}
+
+// Start
+(async function init(){
+  const unlocked = await isUnlocked();
+  $("lockState").textContent = unlocked ? "ouvert" : "verrouillé";
+  if(!unlocked){ await lockUI(true); return; }
+  wireUI();
+  renderAll();
+})();
+</script>
+</body>
+</html>
